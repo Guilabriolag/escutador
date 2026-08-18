@@ -1,0 +1,1777 @@
+<!DOCTYPE html>  <html lang="pt-BR">  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<title>Lightning — Orquestrador de Sats</title>  <style>  
+:root{  
+  --paper:#eee7d8;  
+  --paper-dark:#e2d9c4;  
+  --ink:#20241f;  
+  --ink-soft:#585148;  
+  --rule:#c9bd9f;  
+  
+  --a:#2f5233;  
+  --a-bg:#e2ead9;  
+  
+  --b:#3d4f7a;  
+  --b-bg:#dde3f2;  
+  
+  --c:#80552d;  
+  --c-bg:#eee0ce;  
+  
+  --valid:#2f6b3a;  
+  --invalid:#a13c2f;  
+  --warn:#9b691e;  
+  
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;  
+  --serif:Georgia,"Times New Roman",serif;  
+}  
+  
+*{box-sizing:border-box}  
+  
+html,body{  
+  margin:0;  
+  padding:0;  
+  background:var(--paper);  
+  color:var(--ink);  
+}  
+  
+body{  
+  font-family:var(--mono);  
+  font-size:14px;  
+  line-height:1.5;  
+  padding:28px 20px 80px;  
+  background-image:  
+    repeating-linear-gradient(  
+      180deg,  
+      transparent,  
+      transparent 27px,  
+      rgba(90,80,60,.06) 28px  
+    );  
+}  
+  
+.wrap{  
+  max-width:1100px;  
+  margin:auto;  
+}  
+  
+header{  
+  border-bottom:2px solid var(--ink);  
+  padding-bottom:16px;  
+  margin-bottom:24px;  
+}  
+  
+.kicker{  
+  font-size:11px;  
+  text-transform:uppercase;  
+  letter-spacing:.16em;  
+  color:var(--ink-soft);  
+}  
+  
+h1{  
+  font-family:var(--serif);  
+  font-style:italic;  
+  font-size:clamp(28px,4vw,40px);  
+  margin:0 0 8px;  
+}  
+  
+.sub{  
+  color:var(--ink-soft);  
+  max-width:75ch;  
+  font-size:13px;  
+}  
+  
+.controls{  
+  display:flex;  
+  flex-wrap:wrap;  
+  gap:10px;  
+  margin:22px 0;  
+}  
+  
+button{  
+  font-family:var(--mono);  
+  font-size:12px;  
+  text-transform:uppercase;  
+  letter-spacing:.04em;  
+  padding:11px 16px;  
+  border:0;  
+  background:var(--ink);  
+  color:var(--paper);  
+  cursor:pointer;  
+}  
+  
+button:hover:not(:disabled){  
+  background:#3a4038;  
+}  
+  
+button.ghost{  
+  background:transparent;  
+  color:var(--ink);  
+  border:1.5px solid var(--ink);  
+}  
+  
+button.danger{  
+  border-color:var(--invalid);  
+  color:var(--invalid);  
+}  
+  
+button:disabled{  
+  opacity:.35;  
+  cursor:not-allowed;  
+}  
+  
+.status{  
+  border:1px solid var(--rule);  
+  padding:7px 10px;  
+  font-size:11px;  
+  color:var(--ink-soft);  
+  display:flex;  
+  align-items:center;  
+}  
+  
+.dot{  
+  width:8px;  
+  height:8px;  
+  border-radius:50%;  
+  background:var(--ink-soft);  
+  display:inline-block;  
+  margin-right:7px;  
+}  
+  
+.dot.live{  
+  background:var(--valid);  
+  box-shadow:0 0 0 5px rgba(47,107,58,.12);  
+}  
+  
+/* WALLETS */  
+  
+.wallets{  
+  display:grid;  
+  grid-template-columns:repeat(3,1fr);  
+  gap:12px;  
+  margin-bottom:20px;  
+}  
+  
+.wallet{  
+  border:2px solid var(--ink);  
+  padding:17px;  
+  min-height:260px;  
+}  
+  
+.wallet.a{background:var(--a-bg)}  
+.wallet.b{background:var(--b-bg)}  
+.wallet.c{background:var(--c-bg)}  
+  
+.wallet-id{  
+  font-size:10px;  
+  text-transform:uppercase;  
+  letter-spacing:.12em;  
+  color:var(--ink-soft);  
+}  
+  
+.wallet-name{  
+  font-family:var(--serif);  
+  font-style:italic;  
+  font-size:22px;  
+  font-weight:bold;  
+  margin-bottom:10px;  
+}  
+  
+.wallet.a .wallet-name{color:var(--a)}  
+.wallet.b .wallet-name{color:var(--b)}  
+.wallet.c .wallet-name{color:var(--c)}  
+  
+.balance{  
+  font-size:29px;  
+  font-weight:bold;  
+  margin:10px 0 15px;  
+}  
+  
+.balance small{  
+  font-size:12px;  
+  font-weight:normal;  
+  color:var(--ink-soft);  
+}  
+  
+.field{  
+  margin-bottom:9px;  
+}  
+  
+.label{  
+  font-size:9px;  
+  text-transform:uppercase;  
+  letter-spacing:.08em;  
+  color:var(--ink-soft);  
+}  
+  
+.value{  
+  background:rgba(255,255,255,.45);  
+  border:1px solid var(--rule);  
+  padding:5px 7px;  
+  font-size:10px;  
+  word-break:break-all;  
+}  
+  
+.limit{  
+  font-size:10px;  
+  color:var(--ink-soft);  
+}  
+  
+/* FLOW */  
+  
+.flow{  
+  border:2px solid var(--ink);  
+  padding:17px;  
+  margin-bottom:20px;  
+  background:var(--paper);  
+}  
+  
+.flow-title{  
+  font-family:var(--serif);  
+  font-style:italic;  
+  font-size:19px;  
+  font-weight:bold;  
+  margin-bottom:14px;  
+}  
+  
+.flow-line{  
+  display:flex;  
+  align-items:center;  
+  justify-content:center;  
+  gap:10px;  
+  flex-wrap:wrap;  
+}  
+  
+.node{  
+  border:1px solid var(--ink);  
+  padding:9px 14px;  
+  background:rgba(255,255,255,.35);  
+  font-weight:bold;  
+}  
+  
+.arrow{  
+  font-size:20px;  
+}  
+  
+/* RULES */  
+  
+.rules{  
+  display:grid;  
+  grid-template-columns:1fr 1fr;  
+  gap:14px;  
+  margin-bottom:20px;  
+}  
+  
+.panel{  
+  border:2px solid var(--ink);  
+  padding:17px;  
+  background:var(--paper);  
+}  
+  
+.panel-title{  
+  font-family:var(--serif);  
+  font-style:italic;  
+  font-weight:bold;  
+  font-size:18px;  
+  margin-bottom:12px;  
+}  
+  
+.rule{  
+  border-top:1px solid var(--rule);  
+  padding:10px 0;  
+  font-size:11px;  
+}  
+  
+.rule:first-child{  
+  border-top:0;  
+}  
+  
+.rule b{  
+  color:var(--ink);  
+}  
+  
+.enabled{  
+  color:var(--valid);  
+  font-weight:bold;  
+}  
+  
+/* LEDGER */  
+  
+.ledger{  
+  border:2px solid var(--ink);  
+  background:var(--paper);  
+  padding:17px;  
+}  
+  
+.ledger-head{  
+  display:flex;  
+  justify-content:space-between;  
+  align-items:baseline;  
+  border-bottom:1px dashed var(--rule);  
+  padding-bottom:10px;  
+  margin-bottom:4px;  
+}  
+  
+.ledger-title{  
+  font-family:var(--serif);  
+  font-style:italic;  
+  font-weight:bold;  
+  font-size:19px;  
+}  
+  
+.ledger-note{  
+  color:var(--ink-soft);  
+  font-size:10px;  
+}  
+  
+.row{  
+  display:grid;  
+  grid-template-columns:34px 1fr auto;  
+  gap:12px;  
+  padding:11px 0;  
+  border-bottom:1px solid var(--rule);  
+  font-size:11px;  
+}  
+  
+.row:last-child{  
+  border-bottom:0;  
+}  
+  
+.seq{  
+  color:var(--ink-soft);  
+  font-weight:bold;  
+}  
+  
+.main b{  
+  font-size:12px;  
+}  
+  
+.meta{  
+  color:var(--ink-soft);  
+  margin-top:3px;  
+}  
+  
+.ok{  
+  color:var(--valid);  
+  font-weight:bold;  
+  text-transform:uppercase;  
+}  
+  
+.fail{  
+  color:var(--invalid);  
+  font-weight:bold;  
+  text-transform:uppercase;  
+}  
+  
+.warn{  
+  color:var(--warn);  
+  font-weight:bold;  
+  text-transform:uppercase;  
+}  
+  
+.empty{  
+  text-align:center;  
+  color:var(--ink-soft);  
+  padding:25px 0;  
+  font-style:italic;  
+}  
+  
+footer{  
+  border-top:1px solid var(--rule);  
+  margin-top:24px;  
+  padding-top:12px;  
+  font-size:10px;  
+  color:var(--ink-soft);  
+}  
+  
+code{  
+  background:var(--paper-dark);  
+  padding:1px 4px;  
+}  
+  
+@media(max-width:760px){  
+  .wallets,  
+  .rules{  
+    grid-template-columns:1fr;  
+  }  
+  
+  .row{  
+    grid-template-columns:28px 1fr;  
+  }  
+  
+  .row > :last-child{  
+    grid-column:2;  
+  }  
+}  
+</style>  </head>  <body>  <div class="wrap">  <header>  
+  <div class="kicker">  
+    Núcleo Lightning · prova de movimentação · escutador independente  
+  </div>    <h1>Orquestrador de Sats</h1>    <p class="sub">  
+    Três carteiras simuladas movimentam sats através de regras automáticas.  
+    O escutador não possui chaves privadas: ele apenas observa, verifica  
+    assinaturas e registra a sequência dos eventos.  
+  </p>  
+</header>  <div class="controls">    <button id="btnAuto">  
+    Executar ciclo automático  
+  </button>    <button id="btnManual">  
+    A → B · 1.000 sats  
+  </button>    <button id="btnTamper" class="ghost" disabled>  
+    Adulterar último evento  
+  </button>    <button id="btnReset" class="ghost">  
+    Reiniciar  
+  </button>    <div class="status">  
+    <span id="statusDot" class="dot"></span>  
+    <span id="status">inicializando…</span>  
+  </div>  </div>  <!-- CARTEIRAS -->  <section class="wallets">    <div class="wallet a">  <div class="wallet-id">Wallet A</div>  
+<div class="wallet-name">Origem</div>  
+
+<div class="balance">  
+  <span id="balanceA">10.000</span>  
+  <small>sats</small>  
+</div>  
+
+<div class="field">  
+  <div class="label">Chave pública</div>  
+  <div class="value" id="pubA">gerando…</div>  
+</div>  
+
+<div class="field">  
+  <div class="label">Função</div>  
+  <div class="value">entrada / funding</div>  
+</div>  
+
+<div class="limit">  
+  Limite por pagamento: 2.000 sats  
+</div>
+
+  </div>    <div class="wallet b">  <div class="wallet-id">Wallet B</div>  
+<div class="wallet-name">Operação</div>  
+
+<div class="balance">  
+  <span id="balanceB">3.000</span>  
+  <small>sats</small>  
+</div>  
+
+<div class="field">  
+  <div class="label">Chave pública</div>  
+  <div class="value" id="pubB">gerando…</div>  
+</div>  
+
+<div class="field">  
+  <div class="label">Função</div>  
+  <div class="value">operação</div>  
+</div>  
+
+<div class="limit">  
+  Limite por pagamento: 3.000 sats  
+</div>
+
+  </div>    <div class="wallet c">  <div class="wallet-id">Wallet C</div>  
+<div class="wallet-name">Reserva</div>  
+
+<div class="balance">  
+  <span id="balanceC">2.000</span>  
+  <small>sats</small>  
+</div>  
+
+<div class="field">  
+  <div class="label">Chave pública</div>  
+  <div class="value" id="pubC">gerando…</div>  
+</div>  
+
+<div class="field">  
+  <div class="label">Função</div>  
+  <div class="value">reserva</div>  
+</div>  
+
+<div class="limit">  
+  Limite por pagamento: 5.000 sats  
+</div>
+
+  </div>  </section>  <!-- FLUXO -->  <section class="flow">    <div class="flow-title">  
+    Fluxo de validação  
+  </div>    <div class="flow-line">  <div class="node">PAYMENT_REQUEST</div>  
+<div class="arrow">→</div>  
+
+<div class="node">ESCUTADOR</div>  
+<div class="arrow">→</div>  
+
+<div class="node">VALIDAÇÃO</div>  
+<div class="arrow">→</div>  
+
+<div class="node">EXECUTOR LN</div>  
+<div class="arrow">→</div>  
+
+<div class="node">SETTLED</div>
+
+  </div>  </section>  <!-- REGRAS + ESTADO -->  <section class="rules">    <div class="panel">  <div class="panel-title">  
+  Regras automáticas  
+</div>  
+
+<div class="rule">  
+  <b>REGRA 01</b><br>  
+  Se B &lt; 5.000 sats,  
+  enviar 1.000 sats de A → B.  
+  <span class="enabled">ATIVA</span>  
+</div>  
+
+<div class="rule">  
+  <b>REGRA 02</b><br>  
+  Se B &gt; 6.000 sats,  
+  enviar 2.000 sats de B → C.  
+  <span class="enabled">ATIVA</span>  
+</div>  
+
+<div class="rule">  
+  <b>REGRA 03</b><br>  
+  Nunca enviar mais que o limite da carteira.  
+  <span class="enabled">ATIVA</span>  
+</div>
+
+  </div>    <div class="panel">  <div class="panel-title">  
+  Estado do sistema  
+</div>  
+
+<div class="rule">  
+  <b>Modo:</b>  
+  simulação  
+</div>  
+
+<div class="rule">  
+  <b>Lightning real:</b>  
+  <span class="warn">DESLIGADO</span>  
+</div>  
+
+<div class="rule">  
+  <b>Chaves privadas:</b>  
+  não expostas ao escutador  
+</div>  
+
+<div class="rule">  
+  <b>Anti-replay:</b>  
+  nonce + payment_id  
+</div>
+
+  </div>  </section>  <!-- LEDGER -->  <section class="ledger">    <div class="ledger-head">  <div class="ledger-title">  
+  Escutador / Ledger  
+</div>  
+
+<div class="ledger-note">  
+  somente eventos públicos  
+</div>
+
+  </div>    <div id="ledger">  <div class="empty">  
+  nenhum evento observado ainda  
+</div>
+
+  </div>  </section>  <footer>  Protótipo educacional.
+Os sats são apenas saldos simulados em memória.
+Para produção, o executor deverá conversar com um nó Lightning,
+verificar a liquidação efetiva e persistir o ledger em armazenamento
+confiável.
+
+</footer>  </div>  <script>  
+(function(){  
+  
+"use strict";  
+  
+/*  
+===========================================================  
+ CONFIGURAÇÃO  
+===========================================================  
+*/  
+  
+const CHANNEL_NAME = "lightning-orquestrador-v1";  
+  
+const INITIAL_BALANCES = {  
+  A: 10000,  
+  B: 3000,  
+  C: 2000  
+};  
+  
+const LIMITS = {  
+  A: 2000,  
+  B: 3000,  
+  C: 5000  
+};  
+  
+  
+/*  
+===========================================================  
+ ESTADO  
+===========================================================  
+*/  
+  
+let wallets = {};  
+let channel = null;  
+let listener = null;  
+  
+let sequence = 0;  
+let seenNonces = new Set();  
+  
+let lastEvent = null;  
+  
+  
+/*  
+===========================================================  
+ DOM  
+===========================================================  
+*/  
+  
+const $ = id => document.getElementById(id);  
+  
+const btnAuto = $("btnAuto");  
+const btnManual = $("btnManual");  
+const btnTamper = $("btnTamper");  
+const btnReset = $("btnReset");  
+  
+const statusEl = $("status");  
+const statusDot = $("statusDot");  
+  
+const ledgerEl = $("ledger");  
+  
+  
+/*  
+===========================================================  
+ UTILIDADES  
+===========================================================  
+*/  
+  
+function short(str, n = 28){  
+  
+  if(!str) return "—";  
+  
+  return str.length > n  
+    ? str.slice(0,n) + "…"  
+    : str;  
+}  
+  
+  
+function hex(buffer){  
+  
+  return Array  
+    .from(new Uint8Array(buffer))  
+    .map(b => b.toString(16).padStart(2,"0"))  
+    .join("");  
+  
+}  
+  
+  
+function formatSats(value){  
+  
+  return Number(value).toLocaleString("pt-BR");  
+  
+}  
+  
+  
+function setStatus(text, live=true){  
+  
+  statusEl.textContent = text;  
+  
+  statusDot.classList.toggle("live", live);  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ CARTEIRA  
+===========================================================  
+  
+A chave privada fica dentro do closure.  
+  
+O restante do sistema recebe somente:  
+  
+- id  
+- saldo controlado pela carteira  
+- chave pública  
+- função de assinatura  
+*/  
+  
+async function createWallet(id, initialBalance){  
+  
+  const keyPair = await crypto.subtle.generateKey(  
+  
+    {  
+      name:"ECDSA",  
+      namedCurve:"P-256"  
+    },  
+  
+    true,  
+  
+    ["sign","verify"]  
+  
+  );  
+  
+  
+  const publicKeyJwk =  
+    await crypto.subtle.exportKey(  
+      "jwk",  
+      keyPair.publicKey  
+    );  
+  
+  
+  let balance = initialBalance;  
+  
+  
+  async function sign(payload){  
+  
+    const data =  
+      new TextEncoder()  
+        .encode(JSON.stringify(payload));  
+  
+  
+    const signature =  
+      await crypto.subtle.sign(  
+  
+        {  
+          name:"ECDSA",  
+          hash:"SHA-256"  
+        },  
+  
+        keyPair.privateKey,  
+        data  
+  
+      );  
+  
+  
+    return hex(signature);  
+  
+  }  
+  
+  
+  function createMessage(type, to, extra={}){  
+  
+    return {  
+  
+      id,  
+  
+      to,  
+  
+      type,  
+  
+      nonce:crypto.randomUUID(),  
+  
+      ts:Date.now(),  
+  
+      ...extra  
+  
+    };  
+  
+  }  
+  
+  
+  function getBalance(){  
+  
+    return balance;  
+  
+  }  
+  
+  
+  function debit(amount){  
+  
+    if(amount <= 0)  
+      throw new Error("Valor inválido");  
+  
+    if(amount > balance)  
+      throw new Error("Saldo insuficiente");  
+  
+    balance -= amount;  
+  
+  }  
+  
+  
+  function credit(amount){  
+  
+    if(amount <= 0)  
+      throw new Error("Valor inválido");  
+  
+    balance += amount;  
+  
+  }  
+  
+  
+  return {  
+  
+    id,  
+  
+    publicKeyJwk,  
+  
+    sign,  
+  
+    createMessage,  
+  
+    getBalance,  
+  
+    debit,  
+  
+    credit  
+  
+  };  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ VERIFICAÇÃO  
+===========================================================  
+*/  
+  
+async function verify(publicJwk, payload, signatureHex){  
+  
+  try{  
+  
+    const publicKey =  
+      await crypto.subtle.importKey(  
+  
+        "jwk",  
+  
+        publicJwk,  
+  
+        {  
+          name:"ECDSA",  
+          namedCurve:"P-256"  
+        },  
+  
+        true,  
+  
+        ["verify"]  
+  
+      );  
+  
+  
+    const data =  
+      new TextEncoder()  
+        .encode(JSON.stringify(payload));  
+  
+  
+    const bytes =  
+      new Uint8Array(  
+        signatureHex  
+          .match(/.{1,2}/g)  
+          .map(x => parseInt(x,16))  
+      );  
+  
+  
+    return await crypto.subtle.verify(  
+  
+      {  
+        name:"ECDSA",  
+        hash:"SHA-256"  
+      },  
+  
+      publicKey,  
+      bytes,  
+      data  
+  
+    );  
+  
+  }catch(err){  
+  
+    return false;  
+  
+  }  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ EVENTO  
+===========================================================  
+*/  
+  
+async function createSignedEvent(wallet, type, to, extra={}){  
+  
+  const payload =  
+    wallet.createMessage(  
+      type,  
+      to,  
+      extra  
+    );  
+  
+  
+  const signature =  
+    await wallet.sign(payload);  
+  
+  
+  return {  
+  
+    payload,  
+  
+    signature,  
+  
+    pubkey:wallet.publicKeyJwk  
+  
+  };  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ LEDGER  
+===========================================================  
+*/  
+  
+function addLedger(event, verdict, detail=""){  
+  
+  sequence++;  
+  
+  if(ledgerEl.querySelector(".empty"))  
+    ledgerEl.innerHTML = "";  
+  
+  
+  const p = event.payload;  
+  
+  const row =  
+    document.createElement("div");  
+  
+  row.className = "row";  
+  
+  
+  const path =  
+    `${p.from || p.id} → ${p.to}`;  
+  
+  
+  const amount =  
+    p.amount_sat  
+      ? `${formatSats(p.amount_sat)} sats`  
+      : "";  
+  
+  
+  row.innerHTML = `  
+  
+    <div class="seq">  
+      ${String(sequence).padStart(3,"0")}  
+    </div>  
+  
+    <div class="main">  
+  
+      <b>  
+        ${p.type}  
+        ${amount ? " · " + amount : ""}  
+      </b>  
+  
+      <div class="meta">  
+  
+        ${path}  
+  
+        · nonce ${short(p.nonce,14)}  
+  
+        · ${new Date(p.ts).toLocaleTimeString("pt-BR")}  
+  
+        ${detail ? " · " + detail : ""}  
+  
+      </div>  
+  
+    </div>  
+  
+    <div class="${verdict ? "ok" : "fail"}">  
+  
+      ${verdict ? "válido" : "inválido"}  
+  
+    </div>  
+  
+  `;  
+  
+  
+  ledgerEl.prepend(row);  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ ATUALIZA SALDOS  
+===========================================================  
+*/  
+  
+function updateBalances(){  
+  
+  $("balanceA").textContent =  
+    formatSats(wallets.A.getBalance());  
+  
+  $("balanceB").textContent =  
+    formatSats(wallets.B.getBalance());  
+  
+  $("balanceC").textContent =  
+    formatSats(wallets.C.getBalance());  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ REGRAS  
+===========================================================  
+*/  
+  
+function evaluateRules(){  
+  
+  const A = wallets.A.getBalance();  
+  const B = wallets.B.getBalance();  
+  const C = wallets.C.getBalance();  
+  
+  
+  /*  
+  REGRA 01  
+  
+  B abaixo de 5000:  
+  A -> B 1000 sats  
+  */  
+  
+  if(B < 5000){  
+  
+    if(A >= 1000){  
+  
+      return {  
+        from:"A",  
+        to:"B",  
+        amount:1000,  
+        reason:"B abaixo de 5.000 sats"  
+      };  
+  
+    }  
+  
+  }  
+  
+  
+  /*  
+  REGRA 02  
+  
+  B acima de 6000:  
+  B -> C 2000 sats  
+  */  
+  
+  if(B > 6000){  
+  
+    if(C < 10000 && B >= 2000){  
+  
+      return {  
+        from:"B",  
+        to:"C",  
+        amount:2000,  
+        reason:"B acima de 6.000 sats"  
+      };  
+  
+    }  
+  
+  }  
+  
+  
+  return null;  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ VALIDAÇÃO DA ORDEM  
+===========================================================  
+*/  
+  
+function validatePayment(from, to, amount){  
+  
+  if(!wallets[from])  
+    return {  
+      ok:false,  
+      reason:"origem inexistente"  
+    };  
+  
+  
+  if(!wallets[to])  
+    return {  
+      ok:false,  
+      reason:"destino inexistente"  
+    };  
+  
+  
+  if(from === to)  
+    return {  
+      ok:false,  
+      reason:"origem e destino iguais"  
+    };  
+  
+  
+  if(!Number.isInteger(amount) || amount <= 0)  
+    return {  
+      ok:false,  
+      reason:"valor inválido"  
+    };  
+  
+  
+  if(amount > LIMITS[from])  
+    return {  
+      ok:false,  
+      reason:"limite da carteira excedido"  
+    };  
+  
+  
+  if(wallets[from].getBalance() < amount)  
+    return {  
+      ok:false,  
+      reason:"saldo insuficiente"  
+    };  
+  
+  
+  return {  
+    ok:true  
+  };  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ EXECUTOR LIGHTNING SIMULADO  
+===========================================================  
+  
+Aqui está o ponto de substituição futura.  
+  
+Hoje:  
+    altera saldos locais.  
+  
+No Lightning real:  
+    cria invoice / paga invoice  
+    ou utiliza a API do seu nó.  
+  
+*/  
+  
+async function executePaymentSimulated(from, to, amount){  
+  
+  await new Promise(  
+    resolve => setTimeout(resolve,500)  
+  );  
+  
+  
+  wallets[from].debit(amount);  
+  
+  wallets[to].credit(amount);  
+  
+  updateBalances();  
+  
+  
+  return {  
+  
+    success:true,  
+  
+    payment_id:  
+      "sim-" + crypto.randomUUID(),  
+  
+    settled_at:Date.now()  
+  
+  };  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ PROCESSAMENTO  
+===========================================================  
+*/  
+  
+async function processPayment(from, to, amount, reason){  
+  
+  const validation =  
+    validatePayment(  
+      from,  
+      to,  
+      amount  
+    );  
+  
+  
+  if(!validation.ok){  
+  
+    setStatus(  
+      "Pagamento bloqueado: " +  
+      validation.reason,  
+      false  
+    );  
+  
+    return false;  
+  
+  }  
+  
+  
+  /*  
+  1. Cria pedido  
+  */  
+  
+  const request =  
+    await createSignedEvent(  
+  
+      wallets[from],  
+  
+      "PAYMENT_REQUEST",  
+  
+      to,  
+  
+      {  
+  
+        from,  
+  
+        amount_sat:amount,  
+  
+        reason  
+  
+      }  
+  
+    );  
+  
+  
+  /*  
+  Publica pedido  
+  */  
+  
+  lastEvent = request;  
+  
+  channel.postMessage(request);  
+  
+  
+  /*  
+  Aguarda um pouco para  
+  representar processamento.  
+  */  
+  
+  await new Promise(  
+    resolve => setTimeout(resolve,300)  
+  );  
+  
+  
+  /*  
+  2. Executor Lightning  
+  */  
+  
+  const result =  
+    await executePaymentSimulated(  
+      from,  
+      to,  
+      amount  
+    );  
+  
+  
+  if(!result.success){  
+  
+    setStatus(  
+      "Lightning recusou pagamento",  
+      false  
+    );  
+  
+    return false;  
+  
+  }  
+  
+  
+  /*  
+  3. SETTLED  
+  */  
+  
+  const settled =  
+    await createSignedEvent(  
+  
+      wallets[to],  
+  
+      "PAYMENT_SETTLED",  
+  
+      from,  
+  
+      {  
+  
+        from,  
+  
+        amount_sat:amount,  
+  
+        payment_id:result.payment_id,  
+  
+        settled_at:result.settled_at  
+  
+      }  
+  
+    );  
+  
+  
+  lastEvent = settled;  
+  
+  channel.postMessage(settled);  
+  
+  
+  /*  
+  4. ACK  
+  */  
+  
+  const ack =  
+    await createSignedEvent(  
+  
+      wallets[to],  
+  
+      "PAYMENT_ACK",  
+  
+      from,  
+  
+      {  
+  
+        from,  
+  
+        amount_sat:amount,  
+  
+        payment_id:result.payment_id  
+  
+      }  
+  
+    );  
+  
+  
+  channel.postMessage(ack);  
+  
+  
+  setStatus(  
+    `${from} → ${to}: ${amount} sats liquidados`  
+  );  
+  
+  
+  return true;  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ ESCUTADOR  
+===========================================================  
+*/  
+  
+function startListener(){  
+  
+  listener =  
+    new BroadcastChannel(CHANNEL_NAME);  
+  
+  
+  listener.addEventListener(  
+    "message",  
+    async event => {  
+  
+      const data = event.data;  
+  
+      if(!data || !data.payload)  
+        return;  
+  
+  
+      const payload = data.payload;  
+  
+  
+      /*  
+      Verifica assinatura.  
+      */  
+  
+      const valid =  
+        await verify(  
+  
+          data.pubkey,  
+  
+          payload,  
+  
+          data.signature  
+  
+        );  
+  
+  
+      /*  
+      Anti-replay.  
+      */  
+  
+      const replayKey =  
+        payload.nonce +  
+        ":" +  
+        payload.type;  
+  
+  
+      const replay =  
+        seenNonces.has(replayKey);  
+  
+  
+      if(replay){  
+  
+        addLedger(  
+          data,  
+          false,  
+          "REPLAY DETECTADO"  
+        );  
+  
+        return;  
+  
+      }  
+  
+  
+      seenNonces.add(replayKey);  
+  
+  
+      /*  
+      Pedido de pagamento.  
+      */  
+  
+      if(payload.type === "PAYMENT_REQUEST"){  
+  
+        if(valid){  
+  
+          addLedger(  
+            data,  
+            true,  
+            "pedido autorizado"  
+          );  
+  
+        }else{  
+  
+          addLedger(  
+            data,  
+            false,  
+            "assinatura inválida"  
+          );  
+  
+        }  
+  
+        return;  
+  
+      }  
+  
+  
+      /*  
+      Liquidação.  
+      */  
+  
+      if(payload.type === "PAYMENT_SETTLED"){  
+  
+        addLedger(  
+          data,  
+          valid,  
+          valid  
+            ? "liquidado"  
+            : "assinatura inválida"  
+        );  
+  
+        return;  
+  
+      }  
+  
+  
+      /*  
+      ACK.  
+      */  
+  
+      if(payload.type === "PAYMENT_ACK"){  
+  
+        addLedger(  
+          data,  
+          valid,  
+          valid  
+            ? "confirmação recebida"  
+            : "ACK inválido"  
+        );  
+  
+      }  
+  
+    }  
+  
+  );  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ EXECUÇÃO AUTOMÁTICA  
+===========================================================  
+*/  
+  
+async function automaticCycle(){  
+  
+  btnAuto.disabled = true;  
+  btnManual.disabled = true;  
+  
+  
+  setStatus(  
+    "avaliando regras..."  
+  );  
+  
+  
+  const rule =  
+    evaluateRules();  
+  
+  
+  if(!rule){  
+  
+    setStatus(  
+      "nenhuma regra precisa executar"  
+    );  
+  
+    btnAuto.disabled = false;  
+    btnManual.disabled = false;  
+  
+    return;  
+  
+  }  
+  
+  
+  setStatus(  
+    `regra acionada: ${rule.from} → ${rule.to}`  
+  );  
+  
+  
+  await processPayment(  
+  
+    rule.from,  
+  
+    rule.to,  
+  
+    rule.amount,  
+  
+    rule.reason  
+  
+  );  
+  
+  
+  btnAuto.disabled = false;  
+  btnManual.disabled = false;  
+  
+}  
+  
+  
+/*  
+===========================================================  
+ PAGAMENTO MANUAL  
+===========================================================  
+*/  
+  
+btnManual.addEventListener(  
+  "click",  
+  async () => {  
+  
+    btnManual.disabled = true;  
+    btnAuto.disabled = true;  
+  
+  
+    await processPayment(  
+  
+      "A",  
+  
+      "B",  
+  
+      1000,  
+  
+      "pagamento manual"  
+  
+    );  
+  
+  
+    btnManual.disabled = false;  
+    btnAuto.disabled = false;  
+  
+  }  
+);  
+  
+  
+/*  
+===========================================================  
+ CICLO AUTOMÁTICO  
+===========================================================  
+*/  
+  
+btnAuto.addEventListener(  
+  "click",  
+  automaticCycle  
+);  
+  
+  
+/*  
+===========================================================  
+ ADULTERAÇÃO  
+===========================================================  
+*/  
+  
+btnTamper.addEventListener(  
+  "click",  
+  () => {  
+  
+    if(!lastEvent)  
+      return;  
+  
+  
+    const original =  
+      lastEvent.payload;  
+  
+  
+    /*  
+    Mantém assinatura original,  
+    mas muda o valor.  
+    */  
+  
+    const altered = {  
+  
+      ...original,  
+  
+      amount_sat:  
+        (original.amount_sat || 0) + 9999  
+  
+    };  
+  
+  
+    const fake = {  
+  
+      payload:altered,  
+  
+      signature:lastEvent.signature,  
+  
+      pubkey:lastEvent.pubkey  
+  
+    };  
+  
+  
+    setStatus(  
+      "evento adulterado enviado",  
+      false  
+    );  
+  
+  
+    channel.postMessage(fake);  
+  
+  }  
+);  
+  
+  
+/*  
+===========================================================  
+ RESET  
+===========================================================  
+*/  
+  
+btnReset.addEventListener(  
+  "click",  
+  boot  
+);  
+  
+  
+/*  
+===========================================================  
+ BOOT  
+===========================================================  
+*/  
+  
+async function boot(){  
+  
+  if(channel)  
+    channel.close();  
+  
+  if(listener)  
+    listener.close();  
+  
+  
+  ledgerEl.innerHTML =  
+    '<div class="empty">nenhum evento observado ainda</div>';  
+  
+  
+  sequence = 0;  
+  
+  seenNonces.clear();  
+  
+  lastEvent = null;  
+  
+  
+  btnTamper.disabled = true;  
+  
+  
+  setStatus(  
+    "gerando chaves..."  
+  );  
+  
+  
+  /*  
+  Cria as três carteiras.  
+  */  
+  
+  wallets.A =  
+    await createWallet(  
+      "A",  
+      INITIAL_BALANCES.A  
+    );  
+  
+  
+  wallets.B =  
+    await createWallet(  
+      "B",  
+      INITIAL_BALANCES.B  
+    );  
+  
+  
+  wallets.C =  
+    await createWallet(  
+      "C",  
+      INITIAL_BALANCES.C  
+    );  
+  
+  
+  /*  
+  Exibe chaves públicas.  
+  */  
+  
+  $("pubA").textContent =  
+    short(  
+      wallets.A.publicKeyJwk.x +  
+      wallets.A.publicKeyJwk.y,  
+      36  
+    );  
+  
+  
+  $("pubB").textContent =  
+    short(  
+      wallets.B.publicKeyJwk.x +  
+      wallets.B.publicKeyJwk.y,  
+      36  
+    );  
+  
+  
+  $("pubC").textContent =  
+    short(  
+      wallets.C.publicKeyJwk.x +  
+      wallets.C.publicKeyJwk.y,  
+      36  
+    );  
+  
+  
+  updateBalances();  
+  
+  
+  /*  
+  Canal público.  
+  */  
+  
+  channel =  
+    new BroadcastChannel(  
+      CHANNEL_NAME  
+    );  
+  
+  
+  /*  
+  Escutador independente.  
+  */  
+  
+  startListener();  
+  
+  
+  setStatus(  
+    "3 carteiras prontas"  
+  );  
+  
+}  
+  
+  
+/*  
+Inicialização.  
+*/  
+  
+boot();  
+  
+})();  
+</script>  </body>  
+</html>  
